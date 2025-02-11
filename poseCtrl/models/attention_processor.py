@@ -101,6 +101,7 @@ class PoseAttnProcessor(nn.Module):
         attn,
         hidden_states,
         encoder_hidden_states=None,
+        pose_states=None,
         attention_mask=None,
         temb=None,
         *args,
@@ -131,6 +132,9 @@ class PoseAttnProcessor(nn.Module):
             encoder_hidden_states = hidden_states
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+            encoder_hidden_states = pose_states@encoder_hidden_states
+        else:
+            encoder_hidden_states = pose_states@encoder_hidden_states
 
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
