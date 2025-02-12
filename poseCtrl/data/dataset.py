@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import numpy as np
-
+from torchvision import transforms
 class CustomDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         """
@@ -13,7 +13,10 @@ class CustomDataset(Dataset):
                 on a sample.
         """
         self.root_dir = root_dir
-        self.transform = transform
+        self.transform = transform or transforms.Compose([
+            transforms.Resize((256, 256)),  # 统一尺寸
+            transforms.ToTensor(),  # 转换成 Tensor
+        ])
         self.samples = []
 
         for folder_name in os.listdir(root_dir):
@@ -51,22 +54,30 @@ class CustomDataset(Dataset):
         if not os.path.exists(image_file):
             raise FileNotFoundError(f"Image file not found: {image_file}")
 
-        # Read the image
+        # 读取图像
         try:
             image = Image.open(image_file).convert('RGB')
         except IOError as e:
             raise IOError(f"Error opening image file {image_file}: {e}")
 
-        if self.transform:
-            image = self.transform(image)
+        # 处理图像
+        image = self.transform(image)  # **确保转换成 Tensor**
 
-        # 确保 projection_matrix 和 view_matrix 的形状一致
+        # 确保矩阵是 Tensor
+        projection_matrix = torch.tensor(projection_matrix, dtype=torch.float32)
+        view_matrix = torch.tensor(view_matrix, dtype=torch.float32)
+
+        # 确保 projection_matrix 和 view_matrix 形状正确
         if projection_matrix.shape != (4, 4):
             raise ValueError(f"Projection matrix shape is incorrect: {projection_matrix.shape}")
         if view_matrix.shape != (4, 4):
             raise ValueError(f"View matrix shape is incorrect: {view_matrix.shape}")
 
-        sample = {'image': image, 'projection_matrix': projection_matrix, 'view_matrix': view_matrix}
+        sample = {
+            'image': image,
+            'projection_matrix': projection_matrix,
+            'view_matrix': view_matrix
+        }
         return sample
 
     def read_matrices(self, file_path):
@@ -86,3 +97,14 @@ class CustomDataset(Dataset):
                     except ValueError:
                         pass
             return matrices
+        
+
+
+train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\pic")
+
+train_dataloader = torch.utils.data.DataLoader(
+    train_dataset,
+    shuffle=True,
+    batch_size=32,
+)
+print(len(train_dataset))
