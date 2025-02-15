@@ -134,16 +134,16 @@ def load_base_points(path):
     else:
         pass  
 
-""" add 'set PYTHONPATH=F:/Projects/diffusers/Project' """
-train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\sample")
+# """ add 'set PYTHONPATH=F:/Projects/diffusers/Project' """
+# train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\sample")
 
-train_dataloader = torch.utils.data.DataLoader(
-    train_dataset,
-    shuffle=True,
-    batch_size=32,
-)
-print(len(train_dataset))
+# train_dataloader = torch.utils.data.DataLoader(
+#     train_dataset,
+#     shuffle=True,
+#     batch_size=32,
+# )
+# print(len(train_dataset))
 
-path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
-base_points=load_base_points(path)
-print(base_points.shape)
+# path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
+# base_points=load_base_points(path)
+# print(base_points.shape)

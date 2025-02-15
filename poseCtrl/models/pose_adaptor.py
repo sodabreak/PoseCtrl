@@ -74,8 +74,8 @@ class VPmatrixPoints(nn.Module):
     Output:
         base_points: [batch,77,768]
     """
-    def __init__(self, raw_base_points, *args, **kwargs):
-        super().__init__(*args, **kwargs) 
+    def __init__(self, raw_base_points):
+        super().__init__() 
         self.register_buffer("raw_base_points", raw_base_points)
 
         self.resnet = nn.ModuleList([
@@ -109,30 +109,30 @@ class VPmatrixPoints(nn.Module):
 
 # --------------------- Dataset & Testing ---------------------
 
-import numpy as np
+# import numpy as np
 
-from poseCtrl.data.dataset import CustomDataset
+# from poseCtrl.data.dataset import CustomDataset
 
-path = r"F:\\Projects\\diffusers\\ProgramData\\sample"
-dataset = CustomDataset(path)
-data = dataset[0]
+# path = r"F:\\Projects\\diffusers\\ProgramData\\sample"
+# dataset = CustomDataset(path)
+# data = dataset[0]
 
-# Generate VP Matrix
-vp_matrix = data['projection_matrix'] @ data['view_matrix']
-model = VPmatrixEncoder()
-vp_matrix_tensor = vp_matrix.float().unsqueeze(0)
+# # Generate VP Matrix
+# vp_matrix = data['projection_matrix'] @ data['view_matrix']
+# model = VPmatrixEncoder()
+# vp_matrix_tensor = vp_matrix.float().unsqueeze(0)
 
-# Model Testing
-model = VPmatrixEncoder()
-output = model(vp_matrix_tensor)
+# # Model Testing
+# model = VPmatrixEncoder()
+# output = model(vp_matrix_tensor)
 
-print("Input shape:", vp_matrix_tensor.shape)  # Expected: (1, 1, 4, 4)
-print("Output shape:", output.shape)  # Expected: (1, 77, 77)
+# print("Input shape:", vp_matrix_tensor.shape)  # Expected: (1, 1, 4, 4)
+# print("Output shape:", output.shape)  # Expected: (1, 77, 77)
 
 
-path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
-raw_base_points=load_base_points(path)
-points = VPmatrixPoints(raw_base_points)
-with torch.no_grad():
-    base_points=points(data['view_matrix'].unsqueeze(0), data['projection_matrix'].unsqueeze(0))
-print(base_points.shape)
+# path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
+# raw_base_points=load_base_points(path)
+# points = VPmatrixPoints(raw_base_points)
+# with torch.no_grad():
+#     base_points=points(data['view_matrix'].unsqueeze(0), data['projection_matrix'].unsqueeze(0))
+# print(base_points.shape)

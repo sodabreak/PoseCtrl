@@ -86,22 +86,32 @@ import torch.nn.functional as F
 
 class PoseAttnProcessor(nn.Module):
     r"""
-    Default processor for performing attention-related computations.
+    Attention processor for PoseAttnProcessor.
+    Args:
+        hidden_size (`int`):
+            The hidden size of the attention layer.
+        cross_attention_dim (`int`):
+            The number of channels in the `encoder_hidden_states`.
+        scale (`float`, defaults to 1.0):
+            the weight scale of image prompt.
     """
 
-    def __init__(
-        self,
-        hidden_size=None,
-        cross_attention_dim=None,
-    ):
+    def __init__(self, hidden_size, cross_attention_dim=None, scale=1.0, num_tokens=4):
         super().__init__()
+
+        self.hidden_size = hidden_size
+        self.cross_attention_dim = cross_attention_dim
+        self.scale = scale
+        self.num_tokens = num_tokens
+
+        self.to_k_ip = nn.Linear(cross_attention_dim or hidden_size, hidden_size, bias=False)
+        self.to_v_ip = nn.Linear(cross_attention_dim or hidden_size, hidden_size, bias=False)
 
     def __call__(
         self,
         attn,
         hidden_states,
         encoder_hidden_states=None,
-        pose_states=None,
         attention_mask=None,
         temb=None,
         *args,
@@ -130,11 +140,9 @@ class PoseAttnProcessor(nn.Module):
 
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
-        elif attn.norm_cross:
-            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
-            encoder_hidden_states = pose_states@encoder_hidden_states
         else:
-            encoder_hidden_states = pose_states@encoder_hidden_states
+            if attn.norm_cross:
+                encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
@@ -146,6 +154,7 @@ class PoseAttnProcessor(nn.Module):
         attention_probs = attn.get_attention_scores(query, key, attention_mask)
         hidden_states = torch.bmm(attention_probs, value)
         hidden_states = attn.batch_to_head_dim(hidden_states)
+
 
         # linear proj
         hidden_states = attn.to_out[0](hidden_states)
