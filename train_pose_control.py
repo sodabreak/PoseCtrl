@@ -8,17 +8,14 @@ import time
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from torchvision import transforms
-from PIL import Image
-from transformers import CLIPImageProcessor
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import ProjectConfiguration
 from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
-from transformers import CLIPTextModel, CLIPTokenizer, CLIPVisionModelWithProjection
+from transformers import CLIPTextModel, CLIPTokenizer
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-from poseCtrl.models.pose_adaptor import VPmatrixEncoder, VPmatrixPoints
+from poseCtrl.models.pose_adaptor import VPmatrixPoints
 from poseCtrl.models.attention_processor import AttnProcessor, PoseAttnProcessor
 from poseCtrl.data.dataset import CustomDataset, load_base_points
 
