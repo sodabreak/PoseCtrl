@@ -3,12 +3,13 @@ from typing import List
 
 import torch
 from diffusers import StableDiffusionPipeline
-from diffusers.pipelines.controlnet import MultiControlNetModel
+from diffusers.pipelines.controlnet.multicontrolnet import MultiControlNetModel
+
 from PIL import Image
 from safetensors import safe_open
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 from poseCtrl.models.attention_processor import AttnProcessor, CNAttnProcessor, PoseAttnProcessor
-from poseCtrl.models.pose_adaptor import VPmatrixEncoder
+# from poseCtrl.models.pose_adaptor import VPmatrixEncoder
 from poseCtrl.models.utils import get_generator
 
 class PoseCtrl:

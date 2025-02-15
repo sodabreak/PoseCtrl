@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 from PIL import Image
 import numpy as np
 from torchvision import transforms
+from pathlib import Path
+
 class CustomDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         """
@@ -99,7 +101,40 @@ class CustomDataset(Dataset):
             return matrices
         
 
+def load_base_points(path):
+    points = []
 
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"'{path}' does not exist, please check again.")
+
+    if path.endswith('.txt'):
+        with open(path, 'r') as f:
+            lines = f.readlines()  
+            num_lines = len(lines)  
+            if num_lines < 13860:
+                for line in lines:
+                    coords = list(map(float, line.strip().split()))
+                    if len(coords) != 4:
+                        raise ValueError(f"All points should have 4 coordinates, but found {len(coords)} in: {coords}")
+                    points.append(coords)
+
+                missing_points = 13860 - num_lines
+                points.extend([[0, 0, 0, 0]] * missing_points)
+            else:
+                # 只取前 13860 个点
+                for line in lines[:13860]:
+                    coords = list(map(float, line.strip().split()))
+                    if len(coords) != 4:
+                        raise ValueError(f"All points should have 4 coordinates, but found {len(coords)} in: {coords}")
+                    points.append(coords)
+
+        points_tensor = torch.tensor(np.array(points, dtype=np.float32))
+        return points_tensor
+
+    else:
+        pass  
+
+""" add 'set PYTHONPATH=F:/Projects/diffusers/Project' """
 train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\sample")
 
 train_dataloader = torch.utils.data.DataLoader(
@@ -108,3 +143,7 @@ train_dataloader = torch.utils.data.DataLoader(
     batch_size=32,
 )
 print(len(train_dataset))
+
+path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
+base_points=load_base_points(path)
+print(base_points.shape)
