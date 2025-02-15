@@ -24,7 +24,7 @@ class CustomDataset(Dataset):
             if os.path.isdir(folder_path):
                 data_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
                 image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg'))]
-                if len(data_files) == 66 and len(image_files) == 64:
+                if len(data_files) == 134 and len(image_files) == 132:
                     projection_matrix_file = None
                     view_matrix_file = None
                     for data_file in data_files:
@@ -100,7 +100,7 @@ class CustomDataset(Dataset):
         
 
 
-train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\pic")
+train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\sample")
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset,
