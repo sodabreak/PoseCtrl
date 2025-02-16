@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument(
         "--data_root_path",
         type=str,
-        default="/content/drive/MyDrive/sample_new",
+        default="/content/pic",
         # required=True,
         help="Training data root path",
     )
@@ -345,3 +345,6 @@ def main():
 
 if __name__ == "__main__":
     main()  
+    
+# !apt-get install unrar
+# !unrar x /content/drive/MyDrive/pic.rar /content/
