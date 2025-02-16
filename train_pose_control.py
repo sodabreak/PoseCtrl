@@ -12,10 +12,10 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import ProjectConfiguration
 from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTextModel, CLIPTokenizer, CLIPVisionModelWithProjection, CLIPProcessor
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-from poseCtrl.models.pose_adaptor import VPmatrixPoints
+from poseCtrl.models.pose_adaptor import VPmatrixPoints, ImageProjModel
 from poseCtrl.models.attention_processor import AttnProcessor, PoseAttnProcessor
 from poseCtrl.data.dataset import CustomDataset, load_base_points
 
@@ -50,17 +50,17 @@ def parse_args():
     parser.add_argument(
         "--data_root_path",
         type=str,
-        default="F:\\Projects\\diffusers\\ProgramData\\sample",
+        default="F:\\Projects\\diffusers\\ProgramData\\sample_new",
         # required=True,
         help="Training data root path",
     )
-    # parser.add_argument(
-    #     "--image_encoder_path",
-    #     type=str,
-    #     default="laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
-    #     required=True,
-    #     help="Path to CLIP image encoder",
-    # )
+    parser.add_argument(
+        "--image_encoder_path",
+        type=str,
+        default="laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
+        # required=True,
+        help="Path to CLIP image encoder",
+    )
     parser.add_argument(
         "--output_dir",
         type=str,
@@ -141,22 +141,24 @@ def parse_args():
     return args
 
 class posectrl(nn.Module):
-    def __init__(self, unet, vpmatrix_points, atten_modules, ckpt_path=None):
+    def __init__(self, unet, vpmatrix_points, image_proj_model, atten_modules, ckpt_path=None):
         super().__init__()
         self.unet = unet
         self.vpmatrix_points = vpmatrix_points
         self.atten_modules = atten_modules
+        self.image_proj_model = image_proj_model
 
         if ckpt_path is not None:
             self.load_from_checkpoint(ckpt_path)
 
-    def forward(self, noisy_latents, timesteps, encoder_hidden_states, V_matrix, P_matrix):
+    def forward(self, noisy_latents, timesteps, encoder_hidden_states, V_matrix, P_matrix, image_embeds):
         point_tokens = self.vpmatrix_points(V_matrix, P_matrix)
+        feature_tokens = self.image_proj_model(image_embeds)
         """ 修改:防止之后要加text """
         if encoder_hidden_states:
-            encoder_hidden_states = torch.cat([encoder_hidden_states, point_tokens], dim=1)
+            encoder_hidden_states = torch.cat([point_tokens, feature_tokens, encoder_hidden_states], dim=1)
         else:
-            encoder_hidden_states=point_tokens
+            encoder_hidden_states=torch.cat([point_tokens, feature_tokens], dim=1)
         # Predict the noise residual
         noise_pred = self.unet(noisy_latents, timesteps, encoder_hidden_states).sample
         return noise_pred
@@ -165,21 +167,24 @@ class posectrl(nn.Module):
         # Calculate original checksums
         orig_VPmatrix_sum = torch.sum(torch.stack([torch.sum(p) for p in self.vpmatrix_points.parameters()]))
         orig_atten_sum = torch.sum(torch.stack([torch.sum(p) for p in self.atten_modules.parameters()]))
+        orig__proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj_model.parameters()]))
 
         state_dict = torch.load(ckpt_path, map_location="cpu")
 
         # Load state dict for image_proj_model and adapter_modules
         self.vpmatrix_points.load_state_dict(state_dict["vpmatrix_points"], strict=True)
         self.atten_modules.load_state_dict(state_dict["atten_modules"], strict=True)
+        self.image_proj_model.load_state_dict(state_dict["image_proj_model"], strict=True)
 
         # Calculate new checksums
         new_VPmatrix_sum = torch.sum(torch.stack([torch.sum(p) for p in self.vpmatrix_points.parameters()]))
         new_atten_sum = torch.sum(torch.stack([torch.sum(p) for p in self.atten_modules.parameters()]))
+        new__proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj_model.parameters()]))
 
         # Verify if the weights have changed
         assert orig_VPmatrix_sum != new_VPmatrix_sum, "Weights of VPmatrixEncoder did not change!"
         assert orig_atten_sum != new_atten_sum, "Weights of atten_modules did not change!"
-
+        assert orig__proj_sum != new__proj_sum, "Weights of image_proj_model did not change!"
         print(f"Successfully loaded weights from checkpoint {ckpt_path}")
 
 def main():
@@ -204,18 +209,22 @@ def main():
     text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(args.pretrained_model_name_or_path, subfolder="vae")
     unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
-    # image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
-
+    image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
+    processor = CLIPProcessor.from_pretrained("laion/CLIP-ViT-H-14-laion2B-s32B-b79K")
     # freeze parameters of models to save more memory
     unet.requires_grad_(False)
     vae.requires_grad_(False)
     text_encoder.requires_grad_(False)
-    # image_encoder.requires_grad_(False)
+    image_encoder.requires_grad_(False)
     
     #vp-matrix encoder
     raw_base_points=load_base_points(args.base_point_path)  
     vpmatrix_points_sd = VPmatrixPoints(raw_base_points)
-
+    image_proj_model = ImageProjModel(
+        cross_attention_dim=unet.config.cross_attention_dim,
+        clip_embeddings_dim=image_encoder.config.projection_dim,
+        clip_extra_context_tokens=4,
+    )
     # init pose modules
     attn_procs = {}
     unet_sd = unet.state_dict()
@@ -246,7 +255,7 @@ def main():
 
     atten_modules = torch.nn.ModuleList(unet.attn_processors.values())
     
-    pose_ctrl = posectrl(unet, vpmatrix_points_sd, atten_modules, args.pretrained_pose_path)
+    pose_ctrl = posectrl(unet, vpmatrix_points_sd, image_proj_model, atten_modules, args.pretrained_pose_path)
     
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
@@ -256,10 +265,10 @@ def main():
     #unet.to(accelerator.device, dtype=weight_dtype)
     vae.to(accelerator.device, dtype=weight_dtype)
     text_encoder.to(accelerator.device, dtype=weight_dtype)
-    # image_encoder.to(accelerator.device, dtype=weight_dtype)
+    image_encoder.to(accelerator.device, dtype=weight_dtype)
     
     # optimizer
-    params_to_opt = itertools.chain(pose_ctrl.vpmatrix_points.parameters(),  pose_ctrl.atten_modules.parameters())
+    params_to_opt = itertools.chain(pose_ctrl.vpmatrix_points.parameters(),  pose_ctrl.atten_modules.parameters(), pose_ctrl.image_proj_model.parameters())
     optimizer = torch.optim.AdamW(params_to_opt, lr=args.learning_rate, weight_decay=args.weight_decay)
     
     # dataloader
@@ -297,13 +306,18 @@ def main():
                 # (this is the forward diffusion process)
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
+                with torch.no_grad():
+                    inputs = processor(images=batch['feature'], return_tensors="pt") 
+                    image_tensor = inputs["pixel_values"] 
+                    image_embeds = image_encoder(image_tensor.to(accelerator.device, dtype=weight_dtype)).image_embeds
+
                 if "text_input_ids" in batch:
                     with torch.no_grad():
                         encoder_hidden_states = text_encoder(batch["text_input_ids"].to(accelerator.device))[0]
                 else:
                     encoder_hidden_states=None
                 
-                noise_pred = pose_ctrl(noisy_latents, timesteps, encoder_hidden_states, batch['view_matrix'], batch['projection_matrix'])
+                noise_pred = pose_ctrl(noisy_latents, timesteps, encoder_hidden_states, batch['view_matrix'], batch['projection_matrix'], image_embeds)
         
                 loss = F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
             

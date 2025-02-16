@@ -7,6 +7,7 @@ def change_checkpoint(checkpoint_path, new_checkpoint_path):
     sd = torch.load(checkpoint_path, map_location="cpu")
     vpmatrix_points_sd = {}
     atten_sd = {}
+    proj_sd={}
     for k in sd:
         if k.startswith("unet"):
             pass
@@ -14,8 +15,10 @@ def change_checkpoint(checkpoint_path, new_checkpoint_path):
             vpmatrix_points_sd[k.replace("vpmatrix_points.", "")] = sd[k]
         elif k.startswith("atten_modules"):
             atten_sd[k.replace("atten_modules.", "")] = sd[k]
+        elif k.startswith("image_proj_model"):
+            proj_sd[k.replace("image_proj_model.", "")] = sd[k]
     new_checkpoint_path = Path(new_checkpoint_path, "posectrl.bin")
-    torch.save({"vpmatrix_points_sd": vpmatrix_points_sd, "atten_modules": atten_sd}, new_checkpoint_path)
+    torch.save({"vpmatrix_points_sd": vpmatrix_points_sd, "atten_modules": atten_sd, "image_proj_model": proj_sd}, new_checkpoint_path)
     print(f"Saved new checkpoint to {new_checkpoint_path}")
 
 

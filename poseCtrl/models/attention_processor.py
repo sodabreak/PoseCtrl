@@ -141,6 +141,12 @@ class PoseAttnProcessor(nn.Module):
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
         else:
+            # get encoder_hidden_states, feature_hidden_states
+            end_pos = encoder_hidden_states.shape[1] - self.num_tokens
+            encoder_hidden_states, feature_hidden_states = (
+                encoder_hidden_states[:, :end_pos, :],
+                encoder_hidden_states[:, end_pos:, :],
+            )
             if attn.norm_cross:
                 encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
@@ -155,6 +161,19 @@ class PoseAttnProcessor(nn.Module):
         hidden_states = torch.bmm(attention_probs, value)
         hidden_states = attn.batch_to_head_dim(hidden_states)
 
+        # for ip-adapter
+        feature_key = self.to_k_ip(feature_hidden_states)
+        feature_value = self.to_v_ip(feature_hidden_states)
+
+        feature_key = attn.head_to_batch_dim(feature_key)
+        feature_value = attn.head_to_batch_dim(feature_value)
+
+        feature_attention_probs = attn.get_attention_scores(query, feature_key, None)
+        self.attn_map = feature_attention_probs
+        feature_hidden_states = torch.bmm(feature_attention_probs, feature_value)
+        feature_hidden_states = attn.batch_to_head_dim(feature_hidden_states)
+
+        hidden_states = hidden_states + self.scale * feature_hidden_states
 
         # linear proj
         hidden_states = attn.to_out[0](hidden_states)
