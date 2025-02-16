@@ -60,7 +60,7 @@ image_grid([image.resize((256, 256)), depth_map.resize((256, 256))], 1, 2)
 
 
 # load ip-adapter
-ip_model = IPAdapter(pipe, image_encoder_path, ip_ckpt, device)
+ip_model = posectrl(pipe, image_encoder_path, ip_ckpt, device)
 
 images = ip_model.generate(pil_image=image, num_samples=4, num_inference_steps=50, seed=42)
 grid = image_grid(images, 1, 4)

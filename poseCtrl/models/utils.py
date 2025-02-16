@@ -18,7 +18,7 @@ def change_checkpoint(checkpoint_path, new_checkpoint_path):
         elif k.startswith("image_proj_model"):
             proj_sd[k.replace("image_proj_model.", "")] = sd[k]
     new_checkpoint_path = Path(new_checkpoint_path, "posectrl.bin")
-    torch.save({"vpmatrix_points_sd": vpmatrix_points_sd, "atten_modules": atten_sd, "image_proj_model": proj_sd}, new_checkpoint_path)
+    torch.save({"vpmatrix_points": vpmatrix_points_sd, "atten_modules": atten_sd, "image_proj_model": proj_sd}, new_checkpoint_path)
     print(f"Saved new checkpoint to {new_checkpoint_path}")
 
 
