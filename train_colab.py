@@ -108,7 +108,7 @@ def parse_args():
     parser.add_argument(
         "--save_steps",
         type=int,
-        default=2000,
+        default=2,
         help=(
             "Save a checkpoint of the training state every X updates"
         ),
@@ -249,6 +249,8 @@ def main():
             weights = {
                 "to_k_ip.weight": unet_sd[layer_name + ".to_k.weight"],
                 "to_v_ip.weight": unet_sd[layer_name + ".to_v.weight"],
+                "to_k_pose.weight": unet_sd[layer_name + ".to_k.weight"],
+                "to_v_pose.weight": unet_sd[layer_name + ".to_v.weight"],
             }
             attn_procs[name] = PoseAttnProcessor(hidden_size=hidden_size, cross_attention_dim=cross_attention_dim)
             attn_procs[name].load_state_dict(weights)
@@ -256,9 +258,8 @@ def main():
     unet.set_attn_processor(attn_procs)
 
     atten_modules = torch.nn.ModuleList(unet.attn_processors.values())
-   
+    atten_modules.requires_grad_(True)
     pose_ctrl = posectrl(unet, vpmatrix_points_sd, image_proj_model, atten_modules, args.pretrained_pose_path)
-    print(pose_ctrl.atten_modules.state_dict().keys())  # 这里应该有内容
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
         weight_dtype = torch.float16
@@ -340,6 +341,9 @@ def main():
             if global_step % args.save_steps == 0:
                 save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                 accelerator.save_state(save_path)
+                torch.save(pose_ctrl.state_dict(), os.path.join(save_path,'model.pth'))
+                torch.save(optimizer.state_dict(), os.path.join(save_path,'optimizer.pth'))
+
             
             begin = time.perf_counter()
 
@@ -348,3 +352,4 @@ if __name__ == "__main__":
 
 # !apt-get install unrar
 # !unrar x /content/drive/MyDrive/pic.rar /content/
+

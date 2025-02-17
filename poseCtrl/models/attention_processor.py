@@ -106,6 +106,8 @@ class PoseAttnProcessor(nn.Module):
 
         self.to_k_ip = nn.Linear(cross_attention_dim or hidden_size, hidden_size, bias=False)
         self.to_v_ip = nn.Linear(cross_attention_dim or hidden_size, hidden_size, bias=False)
+        self.to_k_pose = nn.Linear(cross_attention_dim or hidden_size, hidden_size, bias=False)
+        self.to_v_pose = nn.Linear(cross_attention_dim or hidden_size, hidden_size, bias=False)
 
     def __call__(
         self,
@@ -150,8 +152,8 @@ class PoseAttnProcessor(nn.Module):
             if attn.norm_cross:
                 encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-        key = attn.to_k(encoder_hidden_states)
-        value = attn.to_v(encoder_hidden_states)
+        key = self.to_k_pose(encoder_hidden_states)
+        value = self.to_v_pose(encoder_hidden_states)
 
         query = attn.head_to_batch_dim(query)
         key = attn.head_to_batch_dim(key)
