@@ -1,19 +1,25 @@
 import torch
-import torch.nn.functional as F
+import torch
+from diffusers import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipelineLegacy, DDIMScheduler, AutoencoderKL
 from PIL import Image
+import sys
+import os
+sys.path.append(r'F:\Projects\diffusers\Project\PoseCtrl')
+sys.path.append(r'F:\Projects\diffusers\Project\PoseCtrl\poseCtrl')
+from poseCtrl.models.pose_adaptor import VPmatrixPoints, ImageProjModel
+from poseCtrl.models.attention_processor import AttnProcessor, PoseAttnProcessor
+from poseCtrl.data.dataset import CustomDataset, load_base_points
+from poseCtrl.models.posectrl import PoseCtrl
 
-from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
-from poseCtrl.data.dataset import MyDataset
-from poseCtrl.models.posectrl import posectrl
-from diffusers import StableDiffusionAdapterPipeline, T2IAdapter, DDIMScheduler, AutoencoderKL
 
 
-""" 修改 """
+base_point_path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
+raw_base_points=load_base_points(base_point_path)  
 
 base_model_path = "runwayml/stable-diffusion-v1-5"
 vae_model_path = "stabilityai/sd-vae-ft-mse"
-image_encoder_path = "models/image_encoder/"
-ip_ckpt = "models/ip-adapter_sd15.bin"
+image_encoder_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+ip_ckpt = r"F:\Projects\diffusers\Project\PoseCtrl\sd-pose_ctrl\transfer\posectrl.bin"
 device = "cuda"
 
 def image_grid(imgs, rows, cols):
@@ -38,14 +44,9 @@ noise_scheduler = DDIMScheduler(
 )
 vae = AutoencoderKL.from_pretrained(vae_model_path).to(dtype=torch.float16)
 
-
-# load t2i-adapter
-adapter_model_path = "diffusers/t2iadapter_depth_sd15v2/"
-adapter = T2IAdapter.from_pretrained(adapter_model_path, torch_dtype=torch.float16)
 # load SD pipeline
-pipe = StableDiffusionAdapterPipeline.from_pretrained(
+pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
     base_model_path,
-    adapter=adapter,
     torch_dtype=torch.float16,
     scheduler=noise_scheduler,
     vae=vae,
@@ -53,16 +54,25 @@ pipe = StableDiffusionAdapterPipeline.from_pretrained(
     safety_checker=None
 )
 
-# read image prompt
-image = Image.open("assets/images/river.png")
-depth_map = Image.open("assets/structure_controls/depth2.png")
-image_grid([image.resize((256, 256)), depth_map.resize((256, 256))], 1, 2)
+path = r"F:\\Projects\\diffusers\\ProgramData\\sample_new"
+dataset = CustomDataset(path)
+data = dataset[0]
+from torchvision import transforms
 
+transform = transforms.Resize((256, 256))
 
-# load ip-adapter
-ip_model = posectrl(pipe, image_encoder_path, ip_ckpt, device)
+image = data['image']
+image = transform(image) 
+g_image = data['feature']
+g_image = transform(g_image) 
 
-images = ip_model.generate(pil_image=image, num_samples=4, num_inference_steps=50, seed=42)
+vmatrix = data['view_matrix'].unsqueeze(0)
+pmatrix = data['projection_matrix'].unsqueeze(0)
+
+pose_model = PoseCtrl(pipe, image_encoder_path, ip_ckpt, raw_base_points, device)
+images = pose_model.generate(pil_image=image, num_samples=4, num_inference_steps=50, seed=42, image=g_image, strength=0.6)
 grid = image_grid(images, 1, 4)
+grid
+
 
 

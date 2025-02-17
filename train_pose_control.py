@@ -93,7 +93,7 @@ def parse_args():
     parser.add_argument("--weight_decay", type=float, default=1e-2, help="Weight decay to use.")
     parser.add_argument("--num_train_epochs", type=int, default=100)
     parser.add_argument(
-        "--train_batch_size", type=int, default=8, help="Batch size (per device) for the training dataloader."
+        "--train_batch_size", type=int, default=1, help="Batch size (per device) for the training dataloader."
     )
     parser.add_argument(
         "--dataloader_num_workers",
@@ -106,7 +106,7 @@ def parse_args():
     parser.add_argument(
         "--save_steps",
         type=int,
-        default=2000,
+        default=2,
         help=(
             "Save a checkpoint of the training state every X updates"
         ),
@@ -146,6 +146,7 @@ class posectrl(nn.Module):
         self.unet = unet
         self.vpmatrix_points = vpmatrix_points
         self.atten_modules = atten_modules
+
         self.image_proj_model = image_proj_model
 
         if ckpt_path is not None:
@@ -254,15 +255,15 @@ def main():
     unet.set_attn_processor(attn_procs)
 
     atten_modules = torch.nn.ModuleList(unet.attn_processors.values())
-    
     pose_ctrl = posectrl(unet, vpmatrix_points_sd, image_proj_model, atten_modules, args.pretrained_pose_path)
-    
+    print(pose_ctrl.atten_modules.state_dict().keys())  # 这里应该有内容
+
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
         weight_dtype = torch.float16
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
-    #unet.to(accelerator.device, dtype=weight_dtype)
+    #unet.to(accelerator.device, dtype=weiaght_dtype)
     vae.to(accelerator.device, dtype=weight_dtype)
     text_encoder.to(accelerator.device, dtype=weight_dtype)
     image_encoder.to(accelerator.device, dtype=weight_dtype)
@@ -343,3 +344,4 @@ def main():
 
 if __name__ == "__main__":
     main()  
+

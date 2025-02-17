@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument(
         "--data_root_path",
         type=str,
-        default="/content/pic",
+        default="/content/drive/MyDrive/sample_new",
         # required=True,
         help="Training data root path",
     )
@@ -256,9 +256,9 @@ def main():
     unet.set_attn_processor(attn_procs)
 
     atten_modules = torch.nn.ModuleList(unet.attn_processors.values())
-    
+   
     pose_ctrl = posectrl(unet, vpmatrix_points_sd, image_proj_model, atten_modules, args.pretrained_pose_path)
-    
+    print(pose_ctrl.atten_modules.state_dict().keys())  # 这里应该有内容
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
         weight_dtype = torch.float16
@@ -279,7 +279,7 @@ def main():
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         shuffle=True,
-        batch_size=args.train_batch_size,
+        batch_size=4,
         num_workers=args.dataloader_num_workers,
     )
     
@@ -345,6 +345,6 @@ def main():
 
 if __name__ == "__main__":
     main()  
-    
+
 # !apt-get install unrar
 # !unrar x /content/drive/MyDrive/pic.rar /content/

@@ -5,6 +5,7 @@ from PIL import Image
 import sys
 sys.path.append('/content/drive/MyDrive/PoseCtrl')
 sys.path.append('/content/drive/MyDrive/PoseCtrl/poseCtrl')
+sys.path.append('/content/drive/MyDrive/PoseCtrl/poseCtrl/pipelines')
 from poseCtrl.models.pose_adaptor import VPmatrixPoints, ImageProjModel
 from poseCtrl.models.attention_processor import AttnProcessor, PoseAttnProcessor
 from poseCtrl.data.dataset import CustomDataset, load_base_points
@@ -18,7 +19,7 @@ raw_base_points=load_base_points(base_point_path)
 base_model_path = "runwayml/stable-diffusion-v1-5"
 vae_model_path = "stabilityai/sd-vae-ft-mse"
 image_encoder_path = "models/image_encoder/"
-ip_ckpt = "models/ip-adapter_sd15.bin"
+ip_ckpt = r"F:\Projects\diffusers\Project\PoseCtrl\sd-pose_ctrl\transfer\posectrl.bin"
 device = "cuda"
 
 def image_grid(imgs, rows, cols):
