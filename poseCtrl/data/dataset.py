@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 from torchvision import transforms
 from pathlib import Path
-
+from matplotlib import pyplot as plt
 class CustomDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         """
@@ -26,9 +26,9 @@ class CustomDataset(Dataset):
             if os.path.isdir(folder_path):
                 data_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
                 image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg')) and f.lower().startswith('capture')]
-                feature = os.path.join(folder_path, "feature.png")
-                if not os.path.exists(feature):
-                    raise FileNotFoundError(f"'{feature}' does not exist, please check again.")
+                feature_file = os.path.join(folder_path, "feature.png")
+                if not os.path.exists(feature_file):
+                    raise FileNotFoundError(f"'{feature_file}' does not exist, please check again.")
                 if len(data_files) == 134 and len(image_files) == 132:
                     projection_matrix_file = None
                     view_matrix_file = None
@@ -42,7 +42,7 @@ class CustomDataset(Dataset):
                         # 修改为每个图片与对应的矩阵文件配对
                         projection_matrices = self.read_matrices(projection_matrix_file)
                         view_matrices = self.read_matrices(view_matrix_file)
-                        self.samples.extend([(proj, view, img, feature) for proj, view, img in zip(projection_matrices, view_matrices, image_files)])
+                        self.samples.extend([(proj, view, img, feature_file) for proj, view, img in zip(projection_matrices, view_matrices, image_files)])
                         # 添加调试信息
                         # print(f"Folder: {folder_name}, Number of images: {len(image_files)}")
 
@@ -148,7 +148,7 @@ def load_base_points(path):
     else:
         pass  
 
-# """ add 'set PYTHONPATH=F:/Projects/diffusers/Project' """
+""" add 'set PYTHONPATH=F:/Projects/diffusers/Project' """
 # train_dataset = CustomDataset("F:\\Projects\\diffusers\\ProgramData\\sample_new")
 
 # train_dataloader = torch.utils.data.DataLoader(
@@ -157,7 +157,6 @@ def load_base_points(path):
 #     batch_size=32,
 # )
 # print(len(train_dataset))
-
 # path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
 # base_points=load_base_points(path)
 # print(base_points.shape)
