@@ -367,7 +367,7 @@ def main():
                 img = noise_pred[0].permute(1, 2, 0).cpu().detach().numpy()
                 img = (img * 255).astype(np.uint8)
                 image = Image.fromarray(img)
-                image.save(optimizer.state_dict(), os.path.join(save_path,'optimizer.pth'))
+                image.save(os.path.join(save_path,'image.png'))
 
 
             
