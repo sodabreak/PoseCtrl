@@ -90,7 +90,12 @@ class VPmatrixPoints(nn.Module):
         VP_matrix = torch.bmm(P_matrix, V_matrix)  # [batch, 4, 4]
         points = self.raw_base_points.unsqueeze(0).expand(VP_matrix.shape[0], -1, -1)
         transformed_points = torch.bmm(points, VP_matrix.transpose(1, 2))  # [batch, 13860, 4]
-        transformed_points = transformed_points[..., :3] / transformed_points[..., 3:4] # [batch, 13860, 3]
+        transformed_points[..., :3] = torch.where(
+            transformed_points[..., 3:4] != 0,
+            transformed_points[..., :3] / transformed_points[..., 3:4],
+            transformed_points[..., :3]  
+        ) # [batch, 13860, 3]
+        transformed_points = transformed_points[..., :3]
         ones = torch.ones_like(transformed_points[..., :1])  # Create a tensor of ones with shape [batch, 13860, 1]
         transformed_points = torch.cat([transformed_points, ones], dim=-1)
         base_points = transformed_points.view(VP_matrix.shape[0], 77, 720)
