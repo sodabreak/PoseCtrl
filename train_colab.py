@@ -20,13 +20,18 @@ sys.path.append('/content/drive/MyDrive/PoseCtrl/poseCtrl')
 from poseCtrl.models.pose_adaptor import VPmatrixPoints, ImageProjModel
 from poseCtrl.models.attention_processor import AttnProcessor, PoseAttnProcessor
 from poseCtrl.data.dataset import CustomDataset, load_base_points
+from diffusers import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipelineLegacy, DDIMScheduler, AutoencoderKL
+from PIL import Image
+import numpy as np
+def validation(val_pipe):
+    pass
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str, 
-        default='runwayml/stable-diffusion-v1-5',
+        default='/content/drive/MyDrive/basemodel',
         # required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
@@ -52,7 +57,7 @@ def parse_args():
     parser.add_argument(
         "--data_root_path",
         type=str,
-        default="/content/drive/MyDrive/sample_new",
+        default="/content/pic",
         # required=True,
         help="Training data root path",
     )
@@ -108,7 +113,7 @@ def parse_args():
     parser.add_argument(
         "--save_steps",
         type=int,
-        default=2,
+        default=500,
         help=(
             "Save a checkpoint of the training state every X updates"
         ),
@@ -287,6 +292,21 @@ def main():
     # Prepare everything with our `accelerator`.
     pose_ctrl, optimizer, train_dataloader = accelerator.prepare(pose_ctrl, optimizer, train_dataloader)
     
+
+    val_pipe = StableDiffusionImg2ImgPipeline(
+        scheduler=noise_scheduler,
+        tokenizer=tokenizer,
+        text_encoder=text_encoder,
+        vae=vae,
+        unet=unet,
+        feature_extractor=None, 
+        safety_checker=None,  
+        image_encoder=image_encoder,
+    )
+
+    val_pipe.to(torch.device("cuda"), torch_dtype=torch.float16)
+
+
     global_step = 0
     for epoch in range(0, args.num_train_epochs): #default is 100
         begin = time.perf_counter()
@@ -343,6 +363,12 @@ def main():
                 accelerator.save_state(save_path)
                 torch.save(pose_ctrl.state_dict(), os.path.join(save_path,'model.pth'))
                 torch.save(optimizer.state_dict(), os.path.join(save_path,'optimizer.pth'))
+
+                img = noise_pred[0].permute(1, 2, 0).cpu().detach().numpy()
+                img = (img * 255).astype(np.uint8)
+                image = Image.fromarray(img)
+                image.save(optimizer.state_dict(), os.path.join(save_path,'optimizer.pth'))
+
 
             
             begin = time.perf_counter()
