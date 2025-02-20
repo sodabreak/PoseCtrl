@@ -10,16 +10,16 @@ from poseCtrl.models.pose_adaptor import VPmatrixPoints, ImageProjModel
 from poseCtrl.models.attention_processor import AttnProcessor, PoseAttnProcessor
 from poseCtrl.data.dataset import CustomDataset, load_base_points
 from poseCtrl.models.posectrl import PoseCtrl
-
+import numpy as np
 
 
 base_point_path=r'F:\Projects\diffusers\Project\PoseCtrl\dataSet\standardVertex.txt'
 raw_base_points=load_base_points(base_point_path)  
 
-base_model_path = "runwayml/stable-diffusion-v1-5"
+base_model_path = r"F:\Projects\diffusers\ProgramData\basemodel"
 vae_model_path = "stabilityai/sd-vae-ft-mse"
 image_encoder_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
-ip_ckpt = r"F:\Projects\diffusers\Project\PoseCtrl\sd-pose_ctrl\transfer\posectrl.bin"
+ip_ckpt = r"F:\Projects\diffusers\Project\sd-pose_ctrl\trail_1\posectrl.bin"
 device = "cuda"
 
 def image_grid(imgs, rows, cols):
@@ -56,23 +56,25 @@ pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
 
 path = r"F:\\Projects\\diffusers\\ProgramData\\sample_new"
 dataset = CustomDataset(path)
-data = dataset[0]
+data = dataset[260]
 from torchvision import transforms
 
 transform = transforms.Resize((256, 256))
 
-image = data['image']
-image = transform(image) 
-g_image = data['feature']
-g_image = transform(g_image) 
 
-vmatrix = data['view_matrix'].unsqueeze(0)
-pmatrix = data['projection_matrix'].unsqueeze(0)
+image = data['image']
+image_pil = transforms.ToPILImage()(image)
+image_pil = transform(image_pil) 
+
+g_image = data['feature']
+g_image_pil = transforms.ToPILImage()(g_image)
+g_image_pil = transform(g_image_pil) 
+
+vmatrix = data['view_matrix'].to(torch.float16).unsqueeze(0).to(device)
+pmatrix = data['projection_matrix'].to(torch.float16).unsqueeze(0).to(device)
 
 pose_model = PoseCtrl(pipe, image_encoder_path, ip_ckpt, raw_base_points, device)
-images = pose_model.generate(pil_image=image, num_samples=4, num_inference_steps=50, seed=42, image=g_image, strength=0.6)
+# images = pose_model.generate(pil_image=g_image, num_samples=4, num_inference_steps=50, seed=42, image=image, strength=0.6, V_matrix=vmatrix,P_matrix=pmatrix )
+images = pose_model.generate(pil_image=g_image, num_samples=4, num_inference_steps=50, seed=42, strength=0.6, V_matrix=vmatrix,P_matrix=pmatrix )
 grid = image_grid(images, 1, 4)
 grid
-
-
-

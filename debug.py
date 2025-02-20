@@ -19,7 +19,7 @@ raw_base_points=load_base_points(base_point_path)
 base_model_path = r"F:\Projects\diffusers\ProgramData\basemodel"
 vae_model_path = "stabilityai/sd-vae-ft-mse"
 image_encoder_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
-ip_ckpt = r"F:\Projects\diffusers\Project\sd-pose_ctrl\posectrl.bin"
+ip_ckpt = r"F:\Projects\diffusers\Project\sd-pose_ctrl\trail_1\posectrl.bin"
 device = "cuda"
 
 def image_grid(imgs, rows, cols):

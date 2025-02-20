@@ -376,6 +376,4 @@ def main():
 if __name__ == "__main__":
     main()  
 
-# !apt-get install unrar
-# !unrar x /content/drive/MyDrive/pic.rar /content/
 
