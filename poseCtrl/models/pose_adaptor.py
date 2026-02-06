@@ -9,6 +9,7 @@ from poseCtrl.data.dataset import load_base_points
 import cv2
 import numpy as np
 
+
 class VPmatrixEncoder(nn.Module):
     def __init__(self, input_channels=1, base_channels=64, output_size=(77, 77)):
         super(VPmatrixEncoder, self).__init__()
@@ -477,23 +478,23 @@ class STNkd(nn.Module):
         self.fc3 = nn.Linear(256, k * k)
         self.relu = nn.ReLU()
 
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(1024)
-        self.bn4 = nn.BatchNorm1d(512)
-        self.bn5 = nn.BatchNorm1d(256)
+        self.ln1 = nn.LayerNorm(64)
+        self.ln2 = nn.LayerNorm(128)
+        self.ln3 = nn.LayerNorm(1024)
+        self.ln4 = nn.LayerNorm(512)
+        self.ln5 = nn.LayerNorm(256)
 
         self.k = k
 
     def forward(self, x):
         batchsize = x.size()[0]
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.ln1(self.conv1(x).transpose(1, 2)).transpose(1, 2))
+        x = F.relu(self.ln2(self.conv2(x).transpose(1, 2)).transpose(1, 2))
+        x = F.relu(self.ln3(self.conv3(x).transpose(1, 2)).transpose(1, 2))
         x = torch.max(x, 2, keepdim=True)[0]
         x = x.view(-1, 1024)
-        x = F.relu(self.bn4(self.fc1(x)))
-        x = F.relu(self.bn5(self.fc2(x)))
+        x = F.relu(self.ln4(self.fc1(x)))
+        x = F.relu(self.ln5(self.fc2(x)))
         x = self.fc3(x)
 
         iden = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1, self.k * self.k).repeat(
@@ -510,9 +511,9 @@ class PointNetEncoder(nn.Module):
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
         self.conv2 = torch.nn.Conv1d(64, 128, 1)
         self.conv3 = torch.nn.Conv1d(128, 1024, 1)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(1024)
+        self.ln1 = nn.LayerNorm(64)
+        self.ln2 = nn.LayerNorm(128)
+        self.ln3 = nn.LayerNorm(1024)
         self.fstn = STNkd(k=64)
 
         self.feature_proj = nn.Linear(10475, 768)
@@ -535,15 +536,15 @@ class PointNetEncoder(nn.Module):
         )  # [batch, 13860, 3]
         x = x[..., :3]
         x = x.transpose(2, 1)
-        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.ln1(self.conv1(x).transpose(1, 2)).transpose(1, 2))
         trans_feat = self.fstn(x).to(x.dtype)
         x = x.transpose(2, 1)
         x = torch.bmm(x, trans_feat)
         x = x.transpose(2, 1)
         pointfeat = x
 
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = self.bn3(self.conv3(x))
+        x = F.relu(self.ln2(self.conv2(x).transpose(1, 2)).transpose(1, 2))
+        x = self.ln3(self.conv3(x).transpose(1, 2)).transpose(1, 2)
         x = self.feature_proj(x)      # [b, 1024, 768]
         x = self.norm(x)
         x = self.act(x)

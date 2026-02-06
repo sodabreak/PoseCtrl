@@ -95,13 +95,13 @@ def parse_args():
     parser.add_argument(
         "--base_point_path1",
         type=str,
-        default=r'/PoseCtrl/dataSet/standardVertex_1.txt',
+        default=r'dataSet/standardVertex.txt',
         help='Path to base model points'
     )
     parser.add_argument(
         "--base_point_path2",
         type=str,
-        default=r'/PoseCtrl/dataSet/standardVertex_2.txt',
+        default=r'dataSet/standardVertex_2.txt',
         help='Path to base model points'
     )
     parser.add_argument(
@@ -114,7 +114,7 @@ def parse_args():
     parser.add_argument(
         "--data_root_path_2",
         type=str,
-        default="/images/image_resized",
+        default="C:\\Users\\31878\\Desktop\\111\\image_resized",
         # required=True,
         help="Training data root path",
     )
@@ -149,7 +149,7 @@ def parse_args():
     parser.add_argument(
         "--txt_subdir_name",
         type=str,
-        default="/images/smpl",
+        default=r"C:\Users\31878\Desktop\111\smpl",
         # required=True,
         help="Training data root path",
     )
@@ -611,12 +611,22 @@ def main():
     train_dataset = CombinedDatasetTest(
         # path1=args.data_root_path_1,
         path2=args.data_root_path_2,
-        path3=args.data_root_path_3,
+        # path3=args.data_root_path_3,
         # path4=args.data_root_path_4,
         # path5=args.data_root_path_5,
         tokenizer=tokenizer,
         txt_subdir_name=args.txt_subdir_name
     )
+
+    # Test dataset loading
+    print(f"Dataset length: {len(train_dataset)}")
+    if len(train_dataset) > 0:
+        sample = train_dataset[0]
+        print("Sample keys:", list(sample.keys()))
+        if 'points' in sample:
+            print("Points shape:", sample['points'].shape if sample['points'] is not None else "None")
+        else:
+            print("No 'points' key in sample")
 
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
@@ -671,6 +681,9 @@ def main():
                     elif batch['type'][0]=='v4':
                         # image_tensor = processor(images=batch['joints_image'], return_tensors="pt", do_rescale=False).pixel_values
                         # point_embeds = image_encoder(image_tensor.to(accelerator.device, dtype=weight_dtype)).image_embeds
+                        if batch['points'] is None:
+                            print("Error: batch['points'] is None for v4 type")
+                            raise ValueError("Points not found")
                         point_embeds = batch['points'].to(accelerator.device, dtype=weight_dtype)
 
                 if "text_input_ids" in batch:
@@ -690,7 +703,8 @@ def main():
                 noise_pred, trans_feat, importance = pose_ctrl(noisy_latents, timesteps, encoder_hidden_states, point_embeds, batch['view_matrix'], batch['projection_matrix'])
                 loss = F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
                 ft_loss = feature_transform_reguliarzer(trans_feat)
-                balance_loss = torch.std(importance)
+                # balance_loss = torch.std(importance)
+                balance_loss = torch.sqrt(torch.var(importance) + 1e-8)
                 loss = loss + args.lr_ft * ft_loss + args.lr_balance * balance_loss
                 # Gather the losses across all processes for logging (if we use distributed training).
                 avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean().item()
